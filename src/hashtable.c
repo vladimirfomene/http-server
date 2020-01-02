@@ -1,9 +1,14 @@
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+#include <stddef.h>
+#include "entry.h"
 #include "hashtable.h"
 
 #define HASHSIZE 101
+static int table_size = 0;
 
 static struct nlist *hashtab[HASHSIZE];
-static int num_entry = 0;
 
 unsigned hash(char *s){
 	unsigned hashval;
@@ -14,15 +19,19 @@ unsigned hash(char *s){
 
 }
 
+void init_hashtable(){
+	for(int i = 0; i < HASHSIZE; i++){
+		hashtab[i] = NULL;
+	}
+}
+
 
 struct entry *get_entry_ptr(char *s){
-
 	struct nlist *np;
-
-	for(np = hashtab[hash(s)]; np != NULL; np = np->next)
-		if(strcmp(s, np->pathname) == 0)
+	for(np = hashtab[hash(s)]; np != NULL; np = np->next){
+		if(strcmp(s, np->entry_ptr->pathname) == 0)
 			return np->entry_ptr;
-
+	}
 	return NULL;
 
 }
@@ -30,41 +39,50 @@ struct entry *get_entry_ptr(char *s){
 struct entry *put_entry(struct entry *entry_ptr){
 
 	struct nlist *np;
+	struct entry *found_entry;
 	unsigned hashval;
 
-	if((np = lookup(entry_ptr->pathname)) == NULL) {
-		np = (struct nlist *) malloc(sizeof(*np));
+	if((found_entry = get_entry_ptr(entry_ptr->pathname)) == NULL) {
+		np = (struct nlist *) malloc(sizeof(struct nlist));
 	
 		hashval = hash(entry_ptr->pathname);
 		np->next = hashtab[hashval];
+		np->entry_ptr = entry_ptr;
 		hashtab[hashval] = np;
-		num_entry++;
+		table_size++;
 	}
 
-	np->entry_ptr = entry_ptr;
 	return np->entry_ptr;
 
 }
 
-struct entry *remove_entry(char *pathname){
+int hashtable_size(){
+	return table_size;
+}
+
+struct entry *remove_item(char *pathname){
 
 	struct nlist *np;
 
-	for(np = hashtab[hash(pathname)]; np != NULL; np = np->next)
-		if(strcmp(pathname, np->pathname) == 0){
-				struct entry *tmp = np->next;
-				if(*tmp == NULL){
-					np = NULL
+	for(np = hashtab[hash(pathname)]; np != NULL; np = np->next){
+		if(strcmp(pathname, np->entry_ptr->pathname) == 0){
+
+				struct nlist *tmp = np->next;
+				if(tmp == NULL){
+					struct entry *ptr = np->entry_ptr;
+					np = NULL;
+					return ptr;
 				}
 			
 				np->next = tmp->next;
 				np->entry_ptr = tmp->entry_ptr;
+
+				table_size--;
 		
 				return np->entry_ptr;
 				
 		}
-			
-
+	}
 	return NULL;
 
 }
