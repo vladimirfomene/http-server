@@ -1,7 +1,7 @@
 #include <stdlib.h>
 #include "threadpool.h"
 
-static tpool_work_t *tpool_work_create(thread_func_t func, void *arg){
+static tpool_work_t *tpool_work_create(thread_func_t func, struct thread_arg *arg){
     tpool_work_t *work;
 
     if (func == NULL)
@@ -58,7 +58,7 @@ static void *tpool_worker(void *arg){
         pthread_mutex_unlock(&(tm->work_mutex));
 
         if (work != NULL) {
-            work->func(work->arg);
+            work->func(work->arg->param, &(work->arg->lock));
             tpool_work_destroy(work);
         }
 
@@ -76,14 +76,14 @@ static void *tpool_worker(void *arg){
 }
 
 tpool_t *tpool_create(size_t num){
-    tpool_t   *tm;
-    pthread_t  thread;
-    size_t     i;
+    tpool_t *tm;
+    pthread_t thread;
+    size_t i;
 
     if (num == 0)
         num = 2;
 
-    tm             = calloc(1, sizeof(*tm));
+    tm = calloc(1, sizeof(*tm));
     tm->thread_cnt = num;
 
     pthread_mutex_init(&(tm->work_mutex), NULL);
@@ -128,7 +128,7 @@ void tpool_destroy(tpool_t *tm){
     free(tm);
 }
 
-bool tpool_add_work(tpool_t *tm, thread_func_t func, void *arg){
+bool tpool_add_work(tpool_t *tm, thread_func_t func, struct thread_arg *arg){
     tpool_work_t *work;
 
     if (tm == NULL)

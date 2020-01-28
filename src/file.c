@@ -12,6 +12,7 @@ struct file_data *load_file(char *filename){
 	//open file
 	FILE *fp = fopen(filename, "rb");
 	
+
 	if(fp == NULL){
 		return NULL;
 	}
@@ -39,7 +40,7 @@ struct file_data *load_file(char *filename){
 	file_entry->content = buffer;
 	file_entry->size = file_info.st_size;
 
-	//return buffer
+	//return file_data
 	return file_entry;
 }
 
@@ -52,5 +53,6 @@ void print_file_entry(struct file_data *file_entry){
 
 void free_file_data(struct file_data *file_entry){
 		free(file_entry->content);
+		free(file_entry->filename);
 		free(file_entry);
 }

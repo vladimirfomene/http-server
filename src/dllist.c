@@ -13,7 +13,7 @@ void create_list(){
 	tail = head;
 }
 
-void *add_list(struct entry *new_entry){
+void *add_entry(struct entry *new_entry){
 	struct entry *tmp = head;
 	new_entry->next = tmp;
 	head = new_entry;

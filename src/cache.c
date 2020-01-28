@@ -21,12 +21,12 @@ void init_cache(){
 
 struct entry *put_cache(char* filename){
 
-	struct file_data *filedata = load_file(filename);
+	struct file_data *file_data = load_file(filename);
 	struct entry *file_entry = malloc(sizeof(struct entry));
-	file_entry->filesize = filedata->size;
-	file_entry->mime_type = get_mime_type(filedata->filename);
-	file_entry->data = filedata->content;
-	file_entry->pathname = filedata->filename;
+	file_entry->filesize = file_data->size;
+	file_entry->mime_type = get_mime_type(file_data->filename);
+	file_entry->data = file_data->content;
+	file_entry->pathname = file_data->filename;
 	file_entry->prev = NULL;
 	file_entry->next = NULL;
 	if(dllist_size() == MAX_CACHE_SIZE){
@@ -38,7 +38,7 @@ struct entry *put_cache(char* filename){
 		}
 	}
 	
-	struct entry *new_entry = add_list(file_entry);
+	struct entry *new_entry = add_entry(file_entry);
 	struct entry *entry_ptr = put_entry(new_entry);
 
 	return entry_ptr;
@@ -46,7 +46,7 @@ struct entry *put_cache(char* filename){
 }
 
 
-struct entry *get_cache(char* filename){
+struct entry *get_cache(char *filename){
 	struct entry *entry_ptr = get_entry_ptr(filename);
 	
 	if(entry_ptr == NULL){
@@ -55,5 +55,5 @@ struct entry *get_cache(char* filename){
 	}
 	
 	struct entry *cache_entry = remove_entry(entry_ptr);
-	return add_list(cache_entry);
+	return add_entry(cache_entry);
 }

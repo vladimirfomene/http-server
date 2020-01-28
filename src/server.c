@@ -8,30 +8,39 @@
 #include <netinet/in.h>
 #include <netdb.h>
 #include <arpa/inet.h>
+#include "entry.h"
 #include "net.h"
 #include "file.h"
 #include "cache.h"
 #include "dllist.h"
 #include "hashtable.h"
+#include "threadpool.h"
 
 #define PORT "8080"
 #define MAXDATASIZE 30000
+#define NUM_THREADS 10
 
 int read_from_client(char buf[], int sockfd);
 struct request_info *get_request_info(char buf[]);
 struct entry *request_handler(struct request_info *req);
-char *response_builder(struct entry *req_entry);
+char *response_builder(struct entry *req_entry, struct request_info *info);
+void handle_connection(void *arg, pthread_mutex_t *lock);
+char *get_local_time();
+
+char buf[MAXDATASIZE];
 
 int main(void){
 	
-	int sockfd, new_fd, numbytes;
+	int sockfd, new_fd;
 	struct sockaddr_storage their_addr;
 	socklen_t sin_size;
 	char ip6[INET6_ADDRSTRLEN];
-	char buf[MAXDATASIZE];
 
 	sockfd = get_listener_socket(PORT);
 	printf("server: waiting for connections...\n");
+
+	//create thread pool
+	tpool_t *pool = tpool_create(NUM_THREADS);
 
 	while(1) { // main accept() loop
 
@@ -42,34 +51,19 @@ int main(void){
 			perror("accept");
 			continue;
 		}
-		
-		numbytes = read_from_client(buf, new_fd);
-		struct request_info * request = get_request_info(buf);
-		printf("%s\n", request->method);
-		printf("%s\n", request->filepath);
 
 		inet_ntop(their_addr.ss_family,
 		get_in_addr((struct sockaddr *) &their_addr),
 		ip6, sizeof ip6);
 
 		printf("server: got connection from %s\n", ip6);
-
-		if (send(new_fd, "Hello, world!", 13, 0) == -1)
-				perror("send");
-
-		close(new_fd);
+		struct thread_arg args;
+		args.lock = pool->work_mutex;
+		args.param = &new_fd;
+		tpool_add_work(pool, handle_connection, &args);
 
 	}
 
-	//struct entry *home = get_cache("files/index.html");
-	//struct entry *style = get_cache("files/css/main.css");
-	//struct file_data *home = load_file("files/index.html");
-	//printf("File content: %s\n", home->content);
-	//printf("%s\n", home->filename);
-
-	//print_list();
-	//printf("Size of table is %d\n", hashtable_size());
-	//printf("Size of list is %d\n", dllist_size());
 	return 0;
 }
 
@@ -107,7 +101,7 @@ struct entry *request_handler(struct request_info *req){
 	return cache_entry;
 }
 
-char *response_builder(struct entry *req_entry, struct *request_info info){
+char *response_builder(struct entry *req_entry, struct request_info *info){
 	char *status_code;
 	char *status_text;
 	char *response_text;
@@ -131,9 +125,9 @@ char *response_builder(struct entry *req_entry, struct *request_info info){
 	char *date_line = strcat("Date: ", get_local_time());
 	strcat(date_line, "\n");
 	strcat(response_text, date_line);
-	char *connection_line = strcat("Connection: close\n");
+	char *connection_line = "Connection: close\n";
 	strcat(response_text, connection_line);
-	char *content_len_line = strcat("Content-Length: ", req_entry->filesize);
+	char *content_len_line = strcat("Content-Length: ", (char *) req_entry->filesize);
 	strcat(content_len_line, "\n");
 	strcat(response_text, content_len_line);
 	char *content_type_line = strcat("Content-Type: ", req_entry->mime_type);
@@ -145,6 +139,24 @@ char *response_builder(struct entry *req_entry, struct *request_info info){
 	
 }
 
+void handle_connection(void *arg, pthread_mutex_t *lock){
+
+	int *sock_fd = (int *) arg;
+	read_from_client(buf, *sock_fd);
+	struct request_info *request = get_request_info(buf);
+
+	pthread_mutex_lock(lock);
+	struct entry *req_entry = request_handler(request);
+	pthread_mutex_unlock(lock);
+
+	char *res = response_builder(req_entry, request);
+	
+	if (send(*sock_fd, res, req_entry->filesize, 0) == -1)
+				perror("send");
+
+	close(*sock_fd);
+}
+
 char *get_local_time(){
 	struct tm* local; 
   time_t t = time(NULL); 
@@ -154,11 +166,3 @@ char *get_local_time(){
   return asctime(local); 
 
 }
-
-
-
-
-
-
-
-

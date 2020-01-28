@@ -3,7 +3,7 @@
 
 struct file_data {
 	char *filename;
-	char* content;
+	char *content;
 	size_t size;
 };
 

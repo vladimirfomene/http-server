@@ -5,11 +5,16 @@
 #include <stdbool.h>
 #include <stddef.h>
 
-typedef void (*thread_func_t)(void *arg);
+typedef void (*thread_func_t)(void *arg, pthread_mutex_t *lock);
+
+struct thread_arg {
+	pthread_mutex_t lock;
+	void* param;
+};
 
 typedef struct tpool_work {
     thread_func_t      func;
-    void              *arg;
+    struct thread_arg  *arg;
     struct tpool_work *next;
 } tpool_work_t;
 
@@ -27,7 +32,7 @@ typedef struct tpool {
 
 tpool_t *tpool_create(size_t num);
 void tpool_destroy(tpool_t *tm);
-bool tpool_add_work(tpool_t *tm, thread_func_t func, void *arg);
+bool tpool_add_work(tpool_t *tm, thread_func_t func, struct thread_arg *arg);
 void tpool_wait(tpool_t *tm);
 
 #endif
